@@ -15,12 +15,14 @@ function parseItems($, container) {
     $(container).find("a[href*='/play/']").each((i, el) => {
         const link = $(el).attr("href");
         if (!link) return;
-        const card = $(el).closest(".group, .relative, div");
-        let title = card.find("img").first().attr("alt")
-                 || card.find("h3, h4, .font-medium, .font-semibold, .truncate").first().text()
-                 || $(el).attr("title") || $(el).text();
+        const card = $(el).closest(".group, .relative, article, li, div");
+        let title = card.find("h3, h4, .font-medium, .font-semibold, .truncate").first().text()
+                 || card.find("img").first().attr("alt")
+                 || $(el).attr("title")
+                 || $(el).text();
         title = title ? title.trim() : "";
-        if (!title || title.length <= 1 || /^\d+$/.test(title)) return;
+
+        if (!title || title.length <= 1 || /^\d+$/.test(title) || title.includes("立即播放")) return;
 
         const poster = fixPosterUrl(card.find("img").first().attr("data-src") || card.find("img").first().attr("src") || "");
         const badge = card.find("span").first().text().trim();
@@ -37,39 +39,52 @@ async function getCatalog(id, extra) {
 
     if (extra && extra.search) {
         const zhKeyword = await translateText(extra.search, "zh-CN");
+        console.log(`[4KVM Tìm kiếm] "${extra.search}" -> "${zhKeyword}"`);
         url = `${BASE_URL}/search?q=${encodeURIComponent(zhKeyword)}&page=${page}`;
-    } else if (id === "4kvm_latest") url = `${BASE_URL}/filter?years=1&page=${page}`;
-    else if (id === "4kvm_tvshows") url = `${BASE_URL}/filter?type=2&years=1&page=${page}`;
-    else if (id === "4kvm_movies") url = `${BASE_URL}/filter?type=1&years=1&page=${page}`;
-    else if (id === "4kvm_anime") url = `${BASE_URL}/filter?type=3&years=1&page=${page}`;
+    } else if (id === "4kvm_updated") {
+        url = `${BASE_URL}/filter?years=1&sort_by=update_time&order=desc&page=${page}`;
+    } else if (id === "4kvm_2026") {
+        url = `${BASE_URL}/filter?years=1&page=${page}`;
+    } else if (id === "4kvm_cn_drama") {
+        url = `${BASE_URL}/filter?classify=2&areas=14&page=${page}`;
+    } else if (id === "4kvm_tv") {
+        url = `${BASE_URL}/filter?classify=2&page=${page}`;
+    } else if (id === "4kvm_anime") {
+        url = `${BASE_URL}/filter?classify=3&page=${page}`;
+    } else if (id === "4kvm_movies") {
+        url = `${BASE_URL}/filter?classify=1&page=${page}`;
+    }
 
     try {
         const { data } = await axios.get(url, { headers: HEADERS });
         const $ = cheerio.load(data);
-        let rawItems = parseItems($, $("body"));
+        let rawItems = [];
 
         if (id === "4kvm_hot" && (!extra || !extra.search)) {
             $("h2").each((i, h2) => {
                 if ($(h2).text().includes("今天热播")) {
-                    const hotItems = parseItems($, $(h2).parent().parent());
-                    if (hotItems.length > 0) rawItems = hotItems;
+                    rawItems = parseItems($, $(h2).parent().parent());
                 }
             });
         }
 
-        const limited = rawItems.slice(0, 25);
+        if (rawItems.length === 0) {
+            rawItems = parseItems($, $("main").length ? $("main") : $("body"));
+        }
+
+        const limited = rawItems.slice(0, 30);
         if (limited.length === 0) return [];
         const viTitles = await translateBatch(limited.map(i => i.title), "vi");
 
         return limited.map((item, idx) => {
-            const path = item.link.replace(BASE_URL, "").replace("https://4kvm.tv", "").replace("https://4kvm.tv", "");
+            const path = item.link.replace(BASE_URL, "").replace("https://www.4kvm.tv", "").replace("https://4kvm.tv", "");
             return {
                 id: `4kvm:${encodeURIComponent(path)}`,
                 type: id === "4kvm_movies" ? "movie" : "series",
                 name: `${viTitles[idx] || item.title} (${item.title})`,
                 poster: item.poster,
                 background: item.poster,
-                description: item.badge ? `Trạng thái: ${item.badge}` : ""
+                description: item.badge ? `Cập nhật: ${item.badge}` : ""
             };
         });
     } catch (e) {
@@ -92,7 +107,10 @@ async function getMeta(type, id) {
         });
 
         const poster = fixPosterUrl($(`img[alt*='${rawTitle}']`).first().attr("src") || $("img[src*='uploads'], img[src*='douban']").first().attr("src") || "");
-        const [viTitle, viDesc] = await translateBatch([rawTitle, rawDesc], "vi");
+        const [viTitle, viDesc] = await Promise.all([
+            translateText(rawTitle, "vi"),
+            translateText(rawDesc, "vi")
+        ]);
 
         const videos = [];
         const seen = new Set();
@@ -104,7 +122,7 @@ async function getMeta(type, id) {
 
             if (epHref && !seen.has(epHref)) {
                 seen.add(epHref);
-                const epPath = epHref.replace(BASE_URL, "").replace("https://4kvm.tv", "").replace("https://4kvm.tv", "");
+                const epPath = epHref.replace(BASE_URL, "").replace("https://www.4kvm.tv", "").replace("https://4kvm.tv", "");
                 videos.push({
                     id: `4kvm:${encodeURIComponent(epPath)}|${dataid}`,
                     title: /^\d+$/.test(epNum) ? `Tập ${epNum}` : epNum,
@@ -155,8 +173,6 @@ async function getStreams(rawId) {
                     || $(`a[href*='${playKey}']`).first().attr("dataid")
                     || $("a.episode-link").first().attr("dataid")
                     || "";
-
-        console.log("[4KVM Debug]", { dataid, playKey, userlink });
 
         if (!dataid || !playKey || !userlink) return [];
 
