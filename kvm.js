@@ -9,8 +9,10 @@ async function toChineseQuery(text) {
     try {
         const url = `https://googleapis.com{encodeURIComponent(text)}`;
         const { data } = await axios.get(url, { timeout: 4000 });
-        if (Array.isArray(data) && Array.isArray(data)) {
-            return data.map(item => (Array.isArray(item) ? item : "")).join("") || text;
+        // Dùng shift() lấy phần tử đầu tiên để không bị lỗi mất dấu ngoặc vuông khi copy
+        const sentences = Array.isArray(data) ? data.shift() : [];
+        if (Array.isArray(sentences)) {
+            return sentences.map(s => (Array.isArray(s) ? s.shift() : "")).join("") || text;
         }
         return text;
     } catch (e) {
@@ -18,11 +20,6 @@ async function toChineseQuery(text) {
     }
 }
 
-async function fetch4kvmStreams(originName, epNum) {
-    if (!originName) return [];
-    try {
-        const rawClean = originName.split(":").shift().split("：").shift().trim();
-        const cleanQuery = await toChineseQuery(rawClean);
         // Ép số tập về số nguyên chuẩn (VD: "01" -> 1, "02" -> 2)
         const targetEpInt = parseInt(String(epNum).replace(/\D/g, ""), 10) || 1;
 
