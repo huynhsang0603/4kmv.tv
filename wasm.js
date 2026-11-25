@@ -5,7 +5,7 @@ const { BASE_URL, HEADERS } = require("./utils");
 let cachedWasmFactory = null;
 let cachedWasmUrl = "";
 
-async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, userlink, playKey) {
+async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, playKey, userlink) {
     const fullJsUrl = jsPath.startsWith("http") ? jsPath : BASE_URL + jsPath;
     const fullWasmUrl = wasmPath.startsWith("http") ? wasmPath : BASE_URL + wasmPath;
 
@@ -76,8 +76,7 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, userlink,
         cachedWasmUrl = fullWasmUrl;
     }
 
-        const wasmExports = await cachedWasmFactory(nbStContent);
-    // Đúng thứ tự chuẩn của 4kvm.tv: (dataid, playKey, quality, userlink)
+    const wasmExports = await cachedWasmFactory(nbStContent);
     return wasmExports.build_play_url(String(dataid), String(playKey), "1080", String(userlink));
 }
 
