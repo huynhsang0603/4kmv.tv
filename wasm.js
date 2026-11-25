@@ -15,13 +15,12 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
             axios.get(fullWasmUrl, { headers: HEADERS, responseType: "arraybuffer" })
         ]);
 
-        // Vá cả export lẫn import.meta.url để chạy mượt trong Node.js VM
         const jsCode = jsRes.data
             .replace(/import\.meta\.url/g, JSON.stringify(fullJsUrl))
             .replace(/export\s+function\s+build_play_url/g, "exports.build_play_url = function")
             .replace(/export\s+\{[^}]+\};?/g, "");
 
-        const wasmBuffer = Buffer.from(wasmRes.data);
+        const wasmBytes = new Uint8Array(wasmRes.data);
 
         cachedWasmFactory = async (stVal) => {
             const exportsObj = {};
@@ -47,6 +46,7 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
 
             const sandbox = {
                 exports: exportsObj,
+                wasmBytes,
                 window: fakeWindow,
                 self: fakeWindow,
                 globalThis: fakeWindow,
@@ -69,8 +69,8 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
             };
 
             vm.createContext(sandbox);
-            vm.runInContext(jsCode, sandbox);
-            await sandbox.initSync({ module: wasmBuffer });
+            // Khởi tạo trực tiếp bên trong sandbox để đồng nhất Object.prototype và Buffer
+            vm.runInContext(jsCode + "\ninitSync({ module: wasmBytes });", sandbox);
             return exportsObj;
         };
 
