@@ -9,7 +9,10 @@ async function toChineseQuery(text) {
     try {
         const url = `https://googleapis.com{encodeURIComponent(text)}`;
         const { data } = await axios.get(url, { timeout: 4000 });
-        return data[0].map(item => item[0]).join("") || text;
+        if (Array.isArray(data) && Array.isArray(data)) {
+            return data.map(item => (Array.isArray(item) ? item : "")).join("") || text;
+        }
+        return text;
     } catch (e) {
         return text;
     }
@@ -18,9 +21,12 @@ async function toChineseQuery(text) {
 async function fetch4kvmStreams(originName, epNum) {
     if (!originName) return [];
     try {
-        const rawClean = originName.split(":")[0].split("：")[0].trim();
+        const rawClean = originName.split(":").shift().split("：").shift().trim();
         const cleanQuery = await toChineseQuery(rawClean);
-        console.log(`[4KVM Debug] Tìm: "${rawClean}" -> "${cleanQuery}" (Tập ${epNum})`);
+        // Ép số tập về số nguyên chuẩn (VD: "01" -> 1, "02" -> 2)
+        const targetEpInt = parseInt(String(epNum).replace(/\D/g, ""), 10) || 1;
+
+        console.log(`[4KVM Debug] Tìm: "${rawClean}" -> "${cleanQuery}" (Tập ${targetEpInt})`);
 
         const searchUrl = `${BASE_URL}/search?q=${encodeURIComponent(cleanQuery)}`;
         const searchRes = await axios.get(searchUrl, { headers: HEADERS, timeout: 6000 });
@@ -48,34 +54,36 @@ async function fetch4kvmStreams(originName, epNum) {
         const epLinks = $d("a.episode-link, a[href*='/play/'][dataid]");
 
         epLinks.each((i, a) => {
-            const epText = ($d(a).attr("data-episode") || $d(a).text()).trim().replace(/\D/g, "");
-            if (epText === String(epNum) && !targetDataId) {
+            const rawEpStr = ($d(a).attr("data-episode") || $d(a).text()).trim().replace(/\D/g, "");
+            const epInt = parseInt(rawEpStr, 10);
+            if (!isNaN(epInt) && epInt === targetEpInt && !targetDataId) {
                 targetHref = $d(a).attr("href") || "";
                 targetDataId = $d(a).attr("dataid") || "";
             }
         });
 
-        if (!targetDataId && String(epNum) === "1" && epLinks.length > 0) {
+        // Dự phòng cho phim lẻ (nút ghi chữ "正片" hoặc "4K", không có số)
+        if (!targetDataId && targetEpInt === 1 && epLinks.length > 0) {
             targetHref = epLinks.first().attr("href") || "";
             targetDataId = epLinks.first().attr("dataid") || "";
         }
 
         if (!targetHref || !targetDataId) {
-            console.log("[4KVM Debug] Không thấy tập:", epNum, "tại", detailUrl);
+            console.log("[4KVM Debug] Không thấy tập:", targetEpInt, "tại", detailUrl);
             return [];
         }
 
         const epUrl = targetHref.startsWith("http") ? targetHref : `${BASE_URL}${targetHref}`;
-        const playKey = targetHref.split("/play/")[1]?.split("?")[0]?.split("#")[0]?.trim() || "";
+        const playKey = targetHref.split("/play/").pop().split("?").shift().split("#").shift().trim();
 
         const pageRes = await axios.get(epUrl, { headers: HEADERS, timeout: 6000 });
         const html = pageRes.data;
         const rawCookies = pageRes.headers["set-cookie"];
-        const cookieStr = Array.isArray(rawCookies) ? rawCookies.map(c => c.split(";")[0]).join("; ") : "";
+        const cookieStr = Array.isArray(rawCookies) ? rawCookies.map(c => c.split(";").shift()).join("; ") : "";
 
         let userlink = "";
-        if (html.includes("userlink:'")) userlink = html.split("userlink:'")[1].split("'")[0].trim();
-        else if (html.includes('userlink:"')) userlink = html.split('userlink:"')[1].split('"')[0].trim();
+        if (html.includes("userlink:'")) userlink = html.split("userlink:'").pop().split("'").shift().trim();
+        else if (html.includes('userlink:"')) userlink = html.split('userlink:"').pop().split('"').shift().trim();
 
         const $p = cheerio.load(html);
         const nbSt = $p("#nb-st").attr("content") || String(Date.now() - 5000);
