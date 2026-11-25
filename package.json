@@ -1,6 +1,6 @@
 {
   "name": "nuvio-4kvm-addon",
-  "version": "2.0.0",
+  "version": "2.0.1", // Cập nhật phiên bản
   "main": "index.js",
   "engines": {
     "node": ">=18.0.0 <23.0.0"
@@ -11,6 +11,7 @@
   "dependencies": {
     "axios": "^1.6.7",
     "cheerio": "^1.0.0-rc.12",
-    "stremio-addon-sdk": "^1.6.10"
+    "stremio-addon-sdk": "^1.6.10", // Đảm bảo phiên bản mới nhất
+    "dotenv": "^16.3.1" // Thêm dotenv để quản lý biến môi trường
   }
 }
