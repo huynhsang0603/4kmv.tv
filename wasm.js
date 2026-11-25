@@ -27,7 +27,6 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
             function HTMLMetaElement() {}
             const fakeElements = {
                 "nb-st": Object.assign(new HTMLMetaElement(), { content: String(stVal) }),
-                // Lùi thời điểm mở trang lại 3 giây để không bị máy chủ chặn vì 0ms
                 "nb-plt": Object.assign(new HTMLMetaElement(), { content: String(Date.now() - 3000) })
             };
 
@@ -81,4 +80,4 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
     return wasmExports.build_play_url(String(dataid), String(secretKey), "1080", "0");
 }
 
-module.exports = { getCatalog, getMeta, getStreams };
+module.exports = { getSignedPlayUrl };
