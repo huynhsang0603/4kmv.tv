@@ -27,7 +27,8 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
             function HTMLMetaElement() {}
             const fakeElements = {
                 "nb-st": Object.assign(new HTMLMetaElement(), { content: String(stVal) }),
-                "nb-plt": Object.assign(new HTMLMetaElement(), { content: String(Date.now()) })
+                // Lùi thời điểm mở trang lại 3 giây để không bị máy chủ chặn vì 0ms
+                "nb-plt": Object.assign(new HTMLMetaElement(), { content: String(Date.now() - 3000) })
             };
 
             function Window() {}
@@ -69,7 +70,6 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
             };
 
             vm.createContext(sandbox);
-            // Khởi tạo trực tiếp bên trong sandbox để đồng nhất Object.prototype và Buffer
             vm.runInContext(jsCode + "\ninitSync({ module: wasmBytes });", sandbox);
             return exportsObj;
         };
