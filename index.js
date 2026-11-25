@@ -2,13 +2,13 @@ const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
 const { getCatalog, getMeta, getStreams } = require("./scraper");
 
 const manifest = {
-    id: "org.nuvio.kkphim.4kvm.full",
-    version: "5.0.0",
-    name: "KKPhim + 4KVM (Thuyết Minh & 1080p)",
-    description: "7 danh mục Tiếng Việt từ KKPhim, phát song song Thuyết Minh/Vietsub & 4KVM 1080p",
+    id: "org.nuvio.4kvm.pure",
+    version: "6.0.0",
+    name: "4KVM 影视 (1080p HLS)",
+    description: "7 danh mục chuẩn từ 4kvm.tv, tìm kiếm Tiếng Việt & phát 1080p siêu nét",
     resources: ["catalog", "meta", "stream"],
     types: ["series", "movie"],
-    idPrefixes: ["kkphim:"],
+    idPrefixes: ["4kvm:"],
     catalogs: [
         { type: "series", id: "4kvm_hot", name: "4KVM - Hôm Nay Xem Gì", extra: [{ name: "search", isRequired: false }] },
         { type: "series", id: "4kvm_updated", name: "4KVM - Phim Mới Cập Nhật", extra: [{ name: "skip", isRequired: false }] },
