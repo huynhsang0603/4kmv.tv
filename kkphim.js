@@ -15,13 +15,19 @@ async function getKkCatalog(id, extra) {
 
     if (extra && extra.search) {
         apiUrl = `${KK_API}/v1/api/tim-kiem?keyword=${encodeURIComponent(extra.search.trim())}&page=${page}&limit=24`;
-    } else if (id === "kk_series") {
-        apiUrl = `${KK_API}/v1/api/danh-sach/phim-bo?page=${page}&limit=24`;
-    } else if (id === "kk_cn") {
+    } else if (id === "4kvm_hot") {
+        apiUrl = `${KK_API}/danh-sach/phim-moi-cap-nhat-v3?page=${page}`;
+    } else if (id === "4kvm_updated") {
+        apiUrl = `${KK_API}/danh-sach/phim-moi-cap-nhat?page=${page}`;
+    } else if (id === "4kvm_2026") {
+        apiUrl = `${KK_API}/v1/api/nam/2026?page=${page}&limit=24`;
+    } else if (id === "4kvm_cn_drama") {
         apiUrl = `${KK_API}/v1/api/quoc-gia/trung-quoc?page=${page}&limit=24`;
-    } else if (id === "kk_anime") {
+    } else if (id === "4kvm_tv") {
+        apiUrl = `${KK_API}/v1/api/danh-sach/phim-bo?page=${page}&limit=24`;
+    } else if (id === "4kvm_anime") {
         apiUrl = `${KK_API}/v1/api/danh-sach/hoat-hinh?page=${page}&limit=24`;
-    } else if (id === "kk_movies") {
+    } else if (id === "4kvm_movies") {
         apiUrl = `${KK_API}/v1/api/danh-sach/phim-le?page=${page}&limit=24`;
     }
 
@@ -31,7 +37,7 @@ async function getKkCatalog(id, extra) {
 
         return items.map(item => ({
             id: `kkphim:${item.slug}`,
-            type: (id === "kk_movies" || item.type === "single") ? "movie" : "series",
+            type: (id === "4kvm_movies" || item.type === "single") ? "movie" : "series",
             name: item.origin_name ? `${item.name} (${item.origin_name})` : item.name,
             poster: fixKkImage(item.poster_url || item.thumb_url),
             background: fixKkImage(item.thumb_url || item.poster_url),
