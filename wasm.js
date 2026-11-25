@@ -77,7 +77,6 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, userlink,
     }
 
     const wasmExports = await cachedWasmFactory(nbStContent);
-    // Truyền đúng thứ tự: (dataid, secret_key/userlink, quality, play_key)
     return wasmExports.build_play_url(String(dataid), String(userlink), "1080", String(playKey));
 }
 
