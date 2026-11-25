@@ -31,8 +31,16 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
 
             function Window() {}
             const fakeWindow = new Window();
+            fakeWindow.location = {
+                href: BASE_URL + "/",
+                hostname: "www.4kvm.tv",
+                host: "www.4kvm.tv",
+                origin: BASE_URL,
+                protocol: "https:"
+            };
             fakeWindow.document = {
-                getElementById: (id) => fakeElements[id] || null
+                getElementById: (id) => fakeElements[id] || null,
+                location: fakeWindow.location
             };
 
             const sandbox = {
@@ -40,6 +48,8 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
                 window: fakeWindow,
                 self: fakeWindow,
                 globalThis: fakeWindow,
+                document: fakeWindow.document,
+                location: fakeWindow.location,
                 HTMLMetaElement,
                 Window,
                 TextDecoder,
