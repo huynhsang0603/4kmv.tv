@@ -5,7 +5,7 @@ const { BASE_URL, HEADERS } = require("./utils");
 let cachedWasmFactory = null;
 let cachedWasmUrl = "";
 
-async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey) {
+async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, userlink, playKey) {
     const fullJsUrl = jsPath.startsWith("http") ? jsPath : BASE_URL + jsPath;
     const fullWasmUrl = wasmPath.startsWith("http") ? wasmPath : BASE_URL + wasmPath;
 
@@ -77,7 +77,8 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
     }
 
     const wasmExports = await cachedWasmFactory(nbStContent);
-    return wasmExports.build_play_url(String(dataid), String(secretKey), "1080", "0");
+    // Truyền đúng thứ tự: (dataid, secret_key/userlink, quality, play_key)
+    return wasmExports.build_play_url(String(dataid), String(userlink), "1080", String(playKey));
 }
 
 module.exports = { getSignedPlayUrl };
