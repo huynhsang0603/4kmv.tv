@@ -2,21 +2,19 @@ const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
 const { getCatalog, getMeta, getStreams } = require("./scraper");
 
 const manifest = {
-    id: "org.nuvio.4kvm.v3",
-    version: "3.0.0",
-    name: "4KVM 影视 (Bản Hoàn Chỉnh)",
-    description: "Trang chủ, Phim mới 2026, Phim bộ Trung Quốc, Hoạt hình & Phát 1080p HLS",
+    id: "org.nuvio.kkphim.4kvm",
+    version: "4.0.0",
+    name: "KKPhim + 4KVM (Thuyết Minh & 1080p)",
+    description: "Giao diện & Tìm kiếm Tiếng Việt từ KKPhim, phát song song Thuyết Minh + 4KVM 1080p",
     resources: ["catalog", "meta", "stream"],
     types: ["series", "movie"],
-    idPrefixes: ["4kvm:"],
+    idPrefixes: ["kkphim:"],
     catalogs: [
-        { type: "series", id: "4kvm_hot", name: "4KVM - Hôm Nay Xem Gì", extra: [{ name: "search", isRequired: false }] },
-        { type: "series", id: "4kvm_updated", name: "4KVM - Phim Mới Cập Nhật", extra: [{ name: "skip", isRequired: false }] },
-        { type: "series", id: "4kvm_2026", name: "4KVM - Phim Mới 2026 Nhất", extra: [{ name: "skip", isRequired: false }] },
-        { type: "series", id: "4kvm_cn_drama", name: "4KVM - Phim Bộ Trung Quốc", extra: [{ name: "skip", isRequired: false }] },
-        { type: "series", id: "4kvm_tv", name: "4KVM - Phim Truyền Hình", extra: [{ name: "skip", isRequired: false }] },
-        { type: "series", id: "4kvm_anime", name: "4KVM - Phim Hoạt Hình", extra: [{ name: "skip", isRequired: false }] },
-        { type: "movie", id: "4kvm_movies", name: "4KVM - Phim Lẻ Mới", extra: [{ name: "search", isRequired: false }, { name: "skip", isRequired: false }] }
+        { type: "series", id: "kk_updated", name: "Phim Mới Cập Nhật", extra: [{ name: "search", isRequired: false }, { name: "skip", isRequired: false }] },
+        { type: "series", id: "kk_series", name: "Phim Bộ Mới", extra: [{ name: "skip", isRequired: false }] },
+        { type: "series", id: "kk_cn", name: "Phim Bộ Trung Quốc", extra: [{ name: "skip", isRequired: false }] },
+        { type: "series", id: "kk_anime", name: "Hoạt Hình / Tu Tiên", extra: [{ name: "skip", isRequired: false }] },
+        { type: "movie", id: "kk_movies", name: "Phim Lẻ Mới", extra: [{ name: "search", isRequired: false }, { name: "skip", isRequired: false }] }
     ]
 };
 
