@@ -15,7 +15,9 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
             axios.get(fullWasmUrl, { headers: HEADERS, responseType: "arraybuffer" })
         ]);
 
+        // Vá cả export lẫn import.meta.url để chạy mượt trong Node.js VM
         const jsCode = jsRes.data
+            .replace(/import\.meta\.url/g, JSON.stringify(fullJsUrl))
             .replace(/export\s+function\s+build_play_url/g, "exports.build_play_url = function")
             .replace(/export\s+\{[^}]+\};?/g, "");
 
