@@ -9,7 +9,6 @@ async function toChineseQuery(text) {
     try {
         const url = `https://googleapis.com{encodeURIComponent(text)}`;
         const { data } = await axios.get(url, { timeout: 4000 });
-        // Dùng shift() lấy phần tử đầu tiên để không bị lỗi mất dấu ngoặc vuông khi copy
         const sentences = Array.isArray(data) ? data.shift() : [];
         if (Array.isArray(sentences)) {
             return sentences.map(s => (Array.isArray(s) ? s.shift() : "")).join("") || text;
@@ -20,7 +19,11 @@ async function toChineseQuery(text) {
     }
 }
 
-        // Ép số tập về số nguyên chuẩn (VD: "01" -> 1, "02" -> 2)
+async function fetch4kvmStreams(originName, epNum) {
+    if (!originName) return [];
+    try {
+        const rawClean = originName.split(":").shift().split("：").shift().trim();
+        const cleanQuery = await toChineseQuery(rawClean);
         const targetEpInt = parseInt(String(epNum).replace(/\D/g, ""), 10) || 1;
 
         console.log(`[4KVM Debug] Tìm: "${rawClean}" -> "${cleanQuery}" (Tập ${targetEpInt})`);
@@ -59,7 +62,6 @@ async function toChineseQuery(text) {
             }
         });
 
-        // Dự phòng cho phim lẻ (nút ghi chữ "正片" hoặc "4K", không có số)
         if (!targetDataId && targetEpInt === 1 && epLinks.length > 0) {
             targetHref = epLinks.first().attr("href") || "";
             targetDataId = epLinks.first().attr("dataid") || "";
@@ -120,7 +122,7 @@ async function toChineseQuery(text) {
                 }
             }));
     } catch (e) {
-        console.error("[4KVM Lỗi]:", e.response?.status, e.message);
+        console.error("[4KVM Lỗi]:", e.response?.status, e.response?.data || e.message);
         return [];
     }
 }
