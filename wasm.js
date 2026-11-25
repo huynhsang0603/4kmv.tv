@@ -76,8 +76,9 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, userlink,
         cachedWasmUrl = fullWasmUrl;
     }
 
-    const wasmExports = await cachedWasmFactory(nbStContent);
-    return wasmExports.build_play_url(String(dataid), String(userlink), "1080", String(playKey));
+        const wasmExports = await cachedWasmFactory(nbStContent);
+    // Đúng thứ tự chuẩn của 4kvm.tv: (dataid, playKey, quality, userlink)
+    return wasmExports.build_play_url(String(dataid), String(playKey), "1080", String(userlink));
 }
 
 module.exports = { getSignedPlayUrl };
