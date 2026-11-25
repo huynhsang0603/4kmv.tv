@@ -81,4 +81,4 @@ async function getSignedPlayUrl(jsPath, wasmPath, nbStContent, dataid, secretKey
     return wasmExports.build_play_url(String(dataid), String(secretKey), "1080", "0");
 }
 
-module.exports = { getSignedPlayUrl };
+module.exports = { getCatalog, getMeta, getStreams };
