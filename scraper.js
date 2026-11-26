@@ -125,6 +125,10 @@ async function getCatalog(id, extra) {
 }
 
 async function getMeta(type, id) {
+   let seasonNum = 1;
+if (/第二季|第2季/.test(rawTitle)) seasonNum = 2;
+else if (/第三季|第3季/.test(rawTitle)) seasonNum = 3;
+ 
     let path = "";
     if (/^tt\d+/i.test(id) && moviePathMap.has(id)) {
         path = moviePathMap.get(id);
