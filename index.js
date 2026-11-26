@@ -1,15 +1,14 @@
 const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
-const { getCatalog, getMeta, getStreams } = require("./scraper");
+const { getCatalog, getMeta, getStreams, getSubtitles } = require("./scraper");
 
 const manifest = {
     id: "org.nuvio.4kvm.pure",
-    version: "6.0.0",
+    version: "6.1.0",
     name: "4KVM 影视 (1080p HLS)",
-    description: "7 danh mục chuẩn từ 4kvm.tv, tìm kiếm Tiếng Việt & phát 1080p siêu nét",
-    resources: ["catalog", "meta", "stream"],
+    description: "7 danh mục chuẩn từ 4kvm.tv, tìm kiếm Tiếng Việt & phụ đề tự động",
+    resources: ["catalog", "meta", "stream", "subtitles"],
     types: ["series", "movie"],
     idPrefixes: ["4kvm:", "tt"],
-
     catalogs: [
         { type: "series", id: "4kvm_hot", name: "4KVM - Hôm Nay Xem Gì", extra: [{ name: "search", isRequired: false }] },
         { type: "series", id: "4kvm_updated", name: "4KVM - Phim Mới Cập Nhật", extra: [{ name: "skip", isRequired: false }] },
@@ -36,6 +35,11 @@ builder.defineMetaHandler(async ({ type, id }) => {
 builder.defineStreamHandler(async ({ id }) => {
     try { return { streams: await getStreams(id) }; }
     catch (err) { return { streams: [] }; }
+});
+
+builder.defineSubtitlesHandler(async ({ type, id }) => {
+    try { return { subtitles: await getSubtitles(type, id) }; }
+    catch (err) { return { subtitles: [] }; }
 });
 
 serveHTTP(builder.getInterface(), { port: process.env.PORT || 7000 });
