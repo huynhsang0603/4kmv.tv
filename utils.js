@@ -85,37 +85,82 @@ async function translateBatch(textArray, targetLang = "vi") {
     return textArray.map(t => cache.get(`${targetLang}_${t}`) || t);
 }
 
-async function getImdbIdFromCnTitle(cnTitle) {
+async function getImdbIdFromCnTitle(cnTitle, releaseDate, htmlContent) {
     if (!cnTitle) return null;
     const cleanTitle = cnTitle
         .replace(/[:：]\s*第.*季/g, "")
         .replace(/第[一二三四五六七八九十\d]+季/g, "")
-        .replace(/\(美版\)|（美版）|年番|全季|剧场版.*/g, "")
+        .replace(/\(美版\)|（美版）|年番|全集|剧场版.*/g, "")
         .trim();
 
-    if (imdbCache.has(cleanTitle)) return imdbCache.get(cleanTitle);
+    const year = releaseDate ? String(releaseDate).slice(0, 4) : "";
+    const cacheKey = `${cleanTitle}_${year}`;
+    if (imdbCache.has(cacheKey)) return imdbCache.get(cacheKey);
+
+    // 1. Trích xuất mã ảnh TMDB gốc trong HTML (nếu có dạng image.tmdb.org/t/p/.../xxxxx.jpg)
+    const tmdbImgMatch = String(htmlContent || "").match(/image\.tmdb\.org\/t\/p\/[^/]+\/([a-zA-Z0-9]{20,35}\.(?:jpg|png))/);
+    const targetTmdbFile = tmdbImgMatch ? `/${tmdbImgMatch.pop()}` : "";
+
+    let matchedTmdb = null;
 
     try {
-        const searchUrl = `${TMDB_API}/search/multi?api_key=${TMDB_KEY}&language=zh-CN&query=${encodeURIComponent(cleanTitle)}`;
-        const { data } = await axios.get(searchUrl, { timeout: 5000 });
+        // 2. Tìm theo tên tiếng Trung + năm phát hành
+        const yearParam = year ? `&year=${year}&first_air_date_year=${year}` : "";
+        const sUrl = `${TMDB_API}/search/multi?api_key=${TMDB_KEY}&language=zh-CN&query=${encodeURIComponent(cleanTitle)}${yearParam}`;
+        const { data } = await axios.get(sUrl, { timeout: 5000 });
         const results = (data && data.results) || [];
-        const best = results.shift();
 
-        if (best && (best.media_type === "movie" || best.media_type === "tv")) {
-            const extUrl = `${TMDB_API}/${best.media_type}/${best.id}/external_ids?api_key=${TMDB_KEY}`;
+        if (targetTmdbFile) {
+            matchedTmdb = results.find(r => r.backdrop_path === targetTmdbFile || r.poster_path === targetTmdbFile);
+        }
+        if (!matchedTmdb && releaseDate) {
+            matchedTmdb = results.find(r => r.release_date === releaseDate || r.first_air_date === releaseDate);
+        }
+        if (!matchedTmdb && results.length > 0) {
+            matchedTmdb = results.find(r => r.media_type === "movie" || r.media_type === "tv");
+        }
+
+        // 3. Nếu tên phim dịch quá khác -> Tìm qua tên Diễn viên tiếng Anh + Khớp mã ảnh TMDB / Ngày chiếu
+        if (!matchedTmdb && htmlContent && (targetTmdbFile || releaseDate)) {
+            const actorMatch = String(htmlContent).match(/主演[\s\S]{0,150}?([A-Z][a-z]+\s+[A-Z][a-z]+)/);
+            if (actorMatch) {
+                const actorName = actorMatch.pop().trim();
+                const pUrl = `${TMDB_API}/search/person?api_key=${TMDB_KEY}&query=${encodeURIComponent(actorName)}`;
+                const pRes = await axios.get(pUrl, { timeout: 5000 });
+                const person = pRes.data && pRes.data.results && pRes.data.results.shift();
+
+                if (person && person.id) {
+                    const cUrl = `${TMDB_API}/person/${person.id}/combined_credits?api_key=${TMDB_KEY}`;
+                    const cRes = await axios.get(cUrl, { timeout: 5000 });
+                    const castList = (cRes.data && cRes.data.cast) || [];
+
+                    if (targetTmdbFile) {
+                        matchedTmdb = castList.find(c => c.backdrop_path === targetTmdbFile || c.poster_path === targetTmdbFile);
+                    }
+                    if (!matchedTmdb && releaseDate) {
+                        matchedTmdb = castList.find(c => c.release_date === releaseDate || c.first_air_date === releaseDate);
+                    }
+                }
+            }
+        }
+
+        // 4. Quy đổi sang mã IMDb (tt...)
+        if (matchedTmdb && (matchedTmdb.media_type === "movie" || matchedTmdb.media_type === "tv")) {
+            const extUrl = `${TMDB_API}/${matchedTmdb.media_type}/${matchedTmdb.id}/external_ids?api_key=${TMDB_KEY}`;
             const extRes = await axios.get(extUrl, { timeout: 5000 });
             const imdbId = extRes.data && extRes.data.imdb_id;
 
             if (imdbId && /^tt\d+/i.test(imdbId)) {
                 const validId = imdbId.toLowerCase();
-                imdbCache.set(cleanTitle, validId);
+                imdbCache.set(cacheKey, validId);
                 return validId;
             }
         }
     } catch (e) {}
 
-    imdbCache.set(cleanTitle, null);
+    imdbCache.set(cacheKey, null);
     return null;
 }
+
 
 module.exports = { BASE_URL, HEADERS, translateText, translateBatch, getImdbIdFromCnTitle };
