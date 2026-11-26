@@ -4,6 +4,7 @@ const { BASE_URL, HEADERS, translateText, translateBatch, getImdbIdFromCnTitle }
 const { getSignedPlayUrl } = require("./wasm");
 
 const streamMap = new Map();
+const moviePathMap = new Map();
 
 function fixPosterUrl(src) {
     if (!src || typeof src !== "string") return "";
@@ -18,25 +19,16 @@ function parseItems($, container) {
         const link = $(el).attr("href");
         if (!link) return;
         const card = $(el).closest(".group, .relative, article, li, div");
-                let title = card.find("h3, h4, .font-medium, .font-semibold, .truncate").first().text()
-                 || card.find("img").first().attr("alt")
-                 || $(el).attr("title")
-                 || $(el).text();
-        title = title ? title.trim() : "";
-
-        // Bỏ qua nếu title là điểm số (8.2), số tập (12), chữ "4k" hoặc quá ngắn
-        if (!title || title.length <= 1 || /^[\d.]+$/.test(title) || /^4k$/i.test(title) || title.includes("立即播放")) {
-            title = (card.find("img").first().attr("alt") || $(el).attr("title") || "").trim();
-        }
-        if (!title || title.length <= 1 || /^[\d.]+$/.test(title)) return;
-
         let title = card.find("h3, h4, .font-medium, .font-semibold, .truncate").first().text()
                  || card.find("img").first().attr("alt")
                  || $(el).attr("title")
                  || $(el).text();
         title = title ? title.trim() : "";
 
-        if (!title || title.length <= 1 || /^\d+$/.test(title) || title.includes("立即播放")) return;
+        if (!title || title.length <= 1 || /^[\d.]+$/.test(title) || /^4k$/i.test(title) || title.includes("立即播放")) {
+            title = (card.find("img").first().attr("alt") || $(el).attr("title") || "").trim();
+        }
+        if (!title || title.length <= 1 || /^[\d.]+$/.test(title)) return;
 
         const poster = fixPosterUrl(card.find("img").first().attr("data-src") || card.find("img").first().attr("src") || "");
         const badge = card.find("span").first().text().trim();
@@ -45,31 +37,6 @@ function parseItems($, container) {
         }
     });
     return items;
-}
-
-async function getSubtitles(type, id) {
-    try {
-        if (!/^tt\d+/i.test(id)) return [];
-        const subUrl = `https://strem.io{type}/${id}.json`;
-        const { data } = await axios.get(subUrl, { timeout: 5000 });
-        const rawSubs = (data && data.subtitles) || [];
-
-        return rawSubs.map((s, idx) => {
-            const langCode = String(s.lang || "").toLowerCase();
-            let langLabel = s.lang || "Sub";
-            if (langCode === "vie" || langCode === "vi") langLabel = "Tiếng Việt (OpenSub)";
-            else if (langCode === "eng" || langCode === "en") langLabel = "Tiếng Anh (OpenSub)";
-            else if (langCode === "zho" || langCode === "chi" || langCode === "zh") langLabel = "Tiếng Trung";
-
-            return {
-                id: s.id || `sub_${idx}`,
-                url: s.url,
-                lang: langLabel
-            };
-        });
-    } catch (e) {
-        return [];
-    }
 }
 
 async function getCatalog(id, extra) {
@@ -125,7 +92,7 @@ async function getCatalog(id, extra) {
             rawItems = parseItems($, $("main").length ? $("main") : $("body"));
         }
 
-               const limited = rawItems.slice(0, 24);
+        const limited = rawItems.slice(0, 24);
         if (limited.length === 0) return [];
 
         const [viTitles, imdbIds] = await Promise.all([
@@ -152,11 +119,11 @@ async function getCatalog(id, extra) {
                 description: item.badge ? `Cập nhật: ${item.badge}` : ""
             };
         });
-
     } catch (e) {
         return [];
     }
 }
+
 async function getMeta(type, id) {
     let path = "";
     if (/^tt\d+/i.test(id) && moviePathMap.has(id)) {
