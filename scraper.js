@@ -211,18 +211,32 @@ else if (/第三季|第3季/.test(rawTitle)) seasonNum = 3;
 }
 
 
-async function getStreams(rawId) {
-    try {
-        let targetPayload = rawId.replace("4kvm:", "");
-        if (/^tt\d+/i.test(rawId) && streamMap.has(rawId)) {
-            targetPayload = streamMap.get(rawId);
+async function getMeta(type, id) {
+    let path = "";
+    if (/^tt\d+/i.test(id)) {
+        if (moviePathMap.has(id)) {
+            path = moviePathMap.get(id);
+        } else {
+            // Tự động tìm lại đường dẫn 4kvm.tv nếu Render vừa deploy lại làm trống RAM
+            const { IMDB_DICT } = require("./utils");
+            let zhName = "";
+            for (const [k, v] of Object.entries(IMDB_DICT || {})) {
+                if (v === id.toLowerCase()) { zhName = k; break; }
+            }
+            if (zhName) {
+                await getCatalog("4kvm_hot", { search: zhName });
+                if (moviePathMap.has(id)) {
+                    path = moviePathMap.get(id);
+                }
+            }
         }
+    } else {
+        path = decodeURIComponent(id.replace("4kvm:", ""));
+    }
 
-        const parts = targetPayload.split("|");
-        const encodedPath = parts.shift() || "";
-        const passedDataId = parts.shift() || "";
-        const path = decodeURIComponent(encodedPath);
-        const epUrl = path.startsWith("http") ? path : `${BASE_URL}${path}`;
+    if (!path) return {};
+    const movieUrl = path.startsWith("http") ? path : `${BASE_URL}${path}`;
+
 
         const playKey = path.split("/play/").pop().split("?").shift().split("#").shift().trim();
 
