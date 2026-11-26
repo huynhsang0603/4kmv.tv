@@ -181,8 +181,12 @@ else if (/第三季|第3季/.test(rawTitle)) seasonNum = 3;
                     id: finalVideoId,
                     title: /^\d+$/.test(epNumRaw) ? `Tập ${epNumRaw}` : epNumRaw,
                     season: 1,
-                    episode: epNum
+                    episode: epNum,
+                    thumbnail: poster,
+                    overview: `${viTitle} - Tập ${epNum}`,
+                    released: new Date().toISOString()
                 });
+
             }
         });
 
