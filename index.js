@@ -8,7 +8,8 @@ const manifest = {
     description: "7 danh mục chuẩn từ 4kvm.tv, tìm kiếm Tiếng Việt & phát 1080p siêu nét",
     resources: ["catalog", "meta", "stream"],
     types: ["series", "movie"],
-    idPrefixes: ["4kvm:"],
+    idPrefixes: ["4kvm:", "tt"],
+
     catalogs: [
         { type: "series", id: "4kvm_hot", name: "4KVM - Hôm Nay Xem Gì", extra: [{ name: "search", isRequired: false }] },
         { type: "series", id: "4kvm_updated", name: "4KVM - Phim Mới Cập Nhật", extra: [{ name: "skip", isRequired: false }] },
