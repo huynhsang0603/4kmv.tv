@@ -98,35 +98,41 @@ async function getImdbIdFromCnTitle(cnTitle, releaseDate) {
     if (imdbCache.has(cacheKey)) return imdbCache.get(cacheKey);
 
     try {
-        // Thử tìm cả TV và Movie cùng lúc để không bị kết quả "person" (diễn viên) làm nhiễu
-        const [tvRes, movieRes] = await Promise.all([
-            axios.get(`${TMDB_API}/search/tv?api_key=${TMDB_KEY}&language=zh-CN&query=${encodeURIComponent(cleanTitle)}`, { timeout: 8000 }).catch(() => null),
-            axios.get(`${TMDB_API}/search/movie?api_key=${TMDB_KEY}&language=zh-CN&query=${encodeURIComponent(cleanTitle)}`, { timeout: 8000 }).catch(() => null)
-        ]);
+        // 1. Dịch tên tiếng Trung sang tiếng Anh bằng hàm có sẵn trong utils.js
+        const enTitle = await translateText(cleanTitle, "en");
+        const query = (enTitle || cleanTitle).trim();
 
-        const tvHit = tvRes && tvRes.data && tvRes.data.results && tvRes.data.results.shift();
-        const movieHit = movieRes && movieRes.data && movieRes.data.results && movieRes.data.results.shift();
+        // 2. Gọi API công khai của IMDb (Không cần API Key, trả về thẳng mã tt...)
+        const imdbUrl = `https://media-imdb.com{encodeURIComponent(query)}.json`;
+        const { data } = await axios.get(imdbUrl, {
+            timeout: 6000,
+            headers: { "User-Agent": "Mozilla/5.0" }
+        });
 
-        const target = tvHit || movieHit;
-        const targetType = tvHit ? "tv" : "movie";
+        const list = (data && data.d) || [];
+        // Lọc lấy kết quả phim (bỏ qua diễn viên nm...)
+        const moviesOnly = list.filter(item => item.id && /^tt\d+/i.test(item.id));
 
-        if (target && target.id) {
-            const extUrl = `${TMDB_API}/${targetType}/${target.id}/external_ids?api_key=${TMDB_KEY}`;
-            const extRes = await axios.get(extUrl, { timeout: 8000 });
-            const imdbId = extRes.data && extRes.data.imdb_id;
+        let bestMatch = null;
+        if (year && moviesOnly.length > 0) {
+            bestMatch = moviesOnly.find(item => String(item.y) === String(year));
+        }
+        if (!bestMatch && moviesOnly.length > 0) {
+            bestMatch = moviesOnly.shift();
+        }
 
-            if (imdbId && /^tt\d+/i.test(imdbId)) {
-                const validId = imdbId.toLowerCase();
-                imdbCache.set(cacheKey, validId);
-                return validId;
-            }
+        if (bestMatch && bestMatch.id) {
+            const validId = bestMatch.id.toLowerCase();
+            imdbCache.set(cacheKey, validId);
+            return validId;
         }
     } catch (e) {
-        console.error("TMDB Lookup Error:", e.message);
+        console.error("IMDb Lookup Error:", e.message);
     }
 
     return null;
 }
+
 
 
 
