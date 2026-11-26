@@ -120,11 +120,15 @@ async function getMeta(type, id) {
             if ($(h3).text().includes("剧情简介")) rawDesc = $(h3).next().text().trim();
         });
 
+        let releaseDate = "";
+        const dateMatch = data.match(/上映[\s\S]{0,100}?(\d{4}-\d{2}-\d{2})/);
+        if (dateMatch) releaseDate = dateMatch.pop();
+
         const poster = fixPosterUrl($(`img[alt*='${rawTitle}']`).first().attr("src") || $("img[src*='uploads'], img[src*='douban']").first().attr("src") || "");
         const [viTitle, viDesc, imdbId] = await Promise.all([
             translateText(rawTitle, "vi"),
             translateText(rawDesc, "vi"),
-            getImdbIdFromCnTitle(rawTitle)
+            getImdbIdFromCnTitle(rawTitle, releaseDate, data)
         ]);
 
         const videos = [];
@@ -163,7 +167,7 @@ async function getMeta(type, id) {
         }
 
         return {
-            id,
+            id: imdbId || id,
             imdb_id: imdbId || undefined,
             type,
             name: `${viTitle} (${rawTitle})`,
@@ -176,6 +180,7 @@ async function getMeta(type, id) {
         return {};
     }
 }
+
 
 async function getStreams(rawId) {
     try {
