@@ -1,6 +1,7 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
-const { BASE_URL, HEADERS, translateText, translateBatch } = require("./utils");
+const { BASE_URL, HEADERS, translateText, translateBatch, getImdbIdFromCnTitle } = require("./utils");
+
 const { getSignedPlayUrl } = require("./wasm");
 
 function fixPosterUrl(src) {
