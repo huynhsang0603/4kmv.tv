@@ -125,16 +125,31 @@ async function getCatalog(id, extra) {
 }
 
 async function getMeta(type, id) {
-   let seasonNum = 1;
-if (/第二季|第2季/.test(rawTitle)) seasonNum = 2;
-else if (/第三季|第3季/.test(rawTitle)) seasonNum = 3;
- 
     let path = "";
-    if (/^tt\d+/i.test(id) && moviePathMap.has(id)) {
-        path = moviePathMap.get(id);
+    if (/^tt\d+/i.test(id)) {
+        if (moviePathMap.has(id)) {
+            path = moviePathMap.get(id);
+        } else {
+            const { IMDB_DICT } = require("./utils");
+            let zhName = "";
+            for (const [k, v] of Object.entries(IMDB_DICT || {})) {
+                if (v === id.toLowerCase()) {
+                    zhName = k;
+                    break;
+                }
+            }
+            if (zhName) {
+                await getCatalog("4kvm_hot", { search: zhName });
+                if (moviePathMap.has(id)) {
+                    path = moviePathMap.get(id);
+                }
+            }
+        }
     } else {
         path = decodeURIComponent(id.replace("4kvm:", ""));
     }
+
+    if (!path) return {};
     const movieUrl = path.startsWith("http") ? path : `${BASE_URL}${path}`;
 
     try {
@@ -155,7 +170,7 @@ else if (/第三季|第3季/.test(rawTitle)) seasonNum = 3;
         const [viTitle, viDesc, imdbId] = await Promise.all([
             translateText(rawTitle, "vi"),
             translateText(rawDesc, "vi"),
-            getImdbIdFromCnTitle(rawTitle, releaseDate, data)
+            getImdbIdFromCnTitle(rawTitle, releaseDate)
         ]);
 
         const videos = [];
@@ -183,8 +198,6 @@ else if (/第三季|第3季/.test(rawTitle)) seasonNum = 3;
                     season: 1,
                     episode: epNum
                 });
-
-
             }
         });
 
