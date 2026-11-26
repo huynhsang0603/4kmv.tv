@@ -1,5 +1,8 @@
+const axios = require("axios");
 const translate = require("google-translate-api-x");
 
+const TMDB_API = "https://" + "api.themoviedb.org/3";
+const TMDB_KEY = "439c478a771f35c05022d9feabcca01c";
 const BASE_URL = "https://4kvm.tv";
 const HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -7,6 +10,7 @@ const HEADERS = {
 };
 
 const cache = new Map();
+const imdbCache = new Map();
 
 const VN_DICT = {
     "凡人修仙传": "Phàm Nhân Tu Tiên",
@@ -71,7 +75,7 @@ async function translateBatch(textArray, targetLang = "vi") {
         try {
             const res = await translate(uncached.join(" ||| "), { to: targetLang, forceTo: true });
             const arr = res.text.split("|||").map(t => t.trim());
-            uncached.forEach((origZh, i) => {
+            uncached.forEach((origZh) => {
                 const rawVi = arr.shift() || origZh;
                 const finalVi = targetLang === "vi" ? applyVnDictionary(origZh, rawVi) : rawVi;
                 cache.set(`${targetLang}_${origZh}`, finalVi);
@@ -81,4 +85,37 @@ async function translateBatch(textArray, targetLang = "vi") {
     return textArray.map(t => cache.get(`${targetLang}_${t}`) || t);
 }
 
-module.exports = { BASE_URL, HEADERS, translateText, translateBatch };
+async function getImdbIdFromCnTitle(cnTitle) {
+    if (!cnTitle) return null;
+    const cleanTitle = cnTitle
+        .replace(/[:：]\s*第.*季/g, "")
+        .replace(/第[一二三四五六七八九十\d]+季/g, "")
+        .replace(/\(美版\)|（美版）|年番|全季|剧场版.*/g, "")
+        .trim();
+
+    if (imdbCache.has(cleanTitle)) return imdbCache.get(cleanTitle);
+
+    try {
+        const searchUrl = `${TMDB_API}/search/multi?api_key=${TMDB_KEY}&language=zh-CN&query=${encodeURIComponent(cleanTitle)}`;
+        const { data } = await axios.get(searchUrl, { timeout: 5000 });
+        const results = (data && data.results) || [];
+        const best = results.shift();
+
+        if (best && (best.media_type === "movie" || best.media_type === "tv")) {
+            const extUrl = `${TMDB_API}/${best.media_type}/${best.id}/external_ids?api_key=${TMDB_KEY}`;
+            const extRes = await axios.get(extUrl, { timeout: 5000 });
+            const imdbId = extRes.data && extRes.data.imdb_id;
+
+            if (imdbId && /^tt\d+/i.test(imdbId)) {
+                const validId = imdbId.toLowerCase();
+                imdbCache.set(cleanTitle, validId);
+                return validId;
+            }
+        }
+    } catch (e) {}
+
+    imdbCache.set(cleanTitle, null);
+    return null;
+}
+
+module.exports = { BASE_URL, HEADERS, translateText, translateBatch, getImdbIdFromCnTitle };
