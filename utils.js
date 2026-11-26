@@ -85,6 +85,21 @@ async function translateBatch(textArray, targetLang = "vi") {
     return textArray.map(t => cache.get(`${targetLang}_${t}`) || t);
 }
 
+const IMDB_DICT = {
+    "凡人修仙传": "tt12879480",
+    "斗破苍穹": "tt10621094",
+    "完美世界": "tt14552002",
+    "仙逆": "tt29195117",
+    "遮天": "tt27704929",
+    "吞噬星空": "tt13624322",
+    "牧神记": "tt34385094",
+    "沧元图": "tt28151535",
+    "庆余年": "tt10537596",
+    "师兄啊师兄": "tt26443829",
+    "无耻之徒": "tt1586680",
+    "知否知否应是绿肥红瘦": "tt8844332"
+};
+
 async function getImdbIdFromCnTitle(cnTitle, releaseDate) {
     if (!cnTitle) return null;
     const cleanTitle = cnTitle
@@ -93,45 +108,43 @@ async function getImdbIdFromCnTitle(cnTitle, releaseDate) {
         .replace(/\(美版\)|（美版）|年番|全集|剧场版.*/g, "")
         .trim();
 
+    if (IMDB_DICT[cleanTitle]) return IMDB_DICT[cleanTitle];
+
     const year = releaseDate ? String(releaseDate).slice(0, 4) : "";
-    const cacheKey = `${cleanTitle}_${year}`;
+    const cacheKey = cleanTitle + "_" + year;
     if (imdbCache.has(cacheKey)) return imdbCache.get(cacheKey);
 
-    // Thử tìm 2 lượt: Lượt 1 bằng chính tên tiếng Trung gốc, Lượt 2 bằng tên tiếng Anh đã dịch
-    const queries = [cleanTitle];
     try {
         const enTitle = await translateText(cleanTitle, "en");
-        if (enTitle && enTitle.toLowerCase() !== cleanTitle.toLowerCase()) {
-            queries.push(enTitle.replace(/[^a-zA-Z0-9\s]/g, " ").trim());
+        const query = (enTitle || cleanTitle).replace(/[^a-zA-Z0-9\s]/g, " ").trim();
+        if (!query) return null;
+
+        // Gọi trực tiếp Cinemeta Search API (chuẩn gốc của Stremio/Nuvio, không bao giờ lỗi URL)
+        const cinemetaHost = ["https:/", "v3-cinemeta.strem.io", "catalog"].join("/");
+        const [seriesRes, movieRes] = await Promise.all([
+            axios.get(cinemetaHost + "/series/top/search=" + encodeURIComponent(query) + ".json", { timeout: 6000 }).catch(() => null),
+            axios.get(cinemetaHost + "/movie/top/search=" + encodeURIComponent(query) + ".json", { timeout: 6000 }).catch(() => null)
+        ]);
+
+        const sMetas = (seriesRes && seriesRes.data && seriesRes.data.metas) || [];
+        const mMetas = (movieRes && movieRes.data && movieRes.data.metas) || [];
+        const allMetas = sMetas.concat(mMetas).filter(m => m.id && /^tt\d+/i.test(m.id));
+
+        let best = null;
+        if (year && allMetas.length > 0) {
+            best = allMetas.find(m => String(m.releaseInfo || "").includes(year));
         }
-    } catch (e) {}
+        if (!best && allMetas.length > 0) {
+            best = allMetas.shift();
+        }
 
-    for (const q of queries) {
-        try {
-            const firstChar = /^[a-z0-9]/i.test(q) ? q.charAt(0).toLowerCase() : "x";
-            const imdbUrl = `https://media-imdb.com{firstChar}/${encodeURIComponent(q)}.json`;
-            const { data } = await axios.get(imdbUrl, {
-                timeout: 6000,
-                headers: { "User-Agent": "Mozilla/5.0" }
-            });
-
-            const list = (data && data.d) || [];
-            const moviesOnly = list.filter(item => item.id && /^tt\d+/i.test(item.id));
-
-            let bestMatch = null;
-            if (year && moviesOnly.length > 0) {
-                bestMatch = moviesOnly.find(item => String(item.y) === String(year));
-            }
-            if (!bestMatch && moviesOnly.length > 0) {
-                bestMatch = moviesOnly.shift();
-            }
-
-            if (bestMatch && bestMatch.id) {
-                const validId = bestMatch.id.toLowerCase();
-                imdbCache.set(cacheKey, validId);
-                return validId;
-            }
-        } catch (e) {}
+        if (best && best.id) {
+            const validId = best.id.toLowerCase();
+            imdbCache.set(cacheKey, validId);
+            return validId;
+        }
+    } catch (e) {
+        console.error("Cinemeta Search Error:", e.message);
     }
 
     return null;
