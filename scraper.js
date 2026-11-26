@@ -120,9 +120,10 @@ async function getMeta(type, id) {
         });
 
         const poster = fixPosterUrl($(`img[alt*='${rawTitle}']`).first().attr("src") || $("img[src*='uploads'], img[src*='douban']").first().attr("src") || "");
-        const [viTitle, viDesc] = await Promise.all([
+        const [viTitle, viDesc, imdbId] = await Promise.all([
             translateText(rawTitle, "vi"),
-            translateText(rawDesc, "vi")
+            translateText(rawDesc, "vi"),
+            getImdbIdFromCnTitle(rawTitle)
         ]);
 
         const videos = [];
@@ -135,7 +136,7 @@ async function getMeta(type, id) {
 
             if (epHref && !seen.has(epHref)) {
                 seen.add(epHref);
-                const epPath = epHref.replace(BASE_URL, "").replace("https://4kvm.tv", "").replace("https://4kvm.tv", "");
+                const epPath = epHref.replace(BASE_URL, "").replace("https://4kvm.tv", "").replace("http://4kvm.tv", "");
                 videos.push({
                     id: `4kvm:${encodeURIComponent(epPath)}|${dataid}`,
                     title: /^\d+$/.test(epNum) ? `Tập ${epNum}` : epNum,
@@ -146,7 +147,16 @@ async function getMeta(type, id) {
         });
 
         if (videos.length === 0) videos.push({ id: `${id}|`, title: "Bản Đầy Đủ", season: 1, episode: 1 });
-        return { id, type, name: `${viTitle} (${rawTitle})`, poster, background: poster, description: viDesc, videos };
+        return {
+            id,
+            imdb_id: imdbId || undefined,
+            type,
+            name: `${viTitle} (${rawTitle})`,
+            poster,
+            background: poster,
+            description: viDesc,
+            videos
+        };
     } catch (e) {
         return {};
     }
