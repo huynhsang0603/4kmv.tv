@@ -18,6 +18,18 @@ function parseItems($, container) {
         const link = $(el).attr("href");
         if (!link) return;
         const card = $(el).closest(".group, .relative, article, li, div");
+                let title = card.find("h3, h4, .font-medium, .font-semibold, .truncate").first().text()
+                 || card.find("img").first().attr("alt")
+                 || $(el).attr("title")
+                 || $(el).text();
+        title = title ? title.trim() : "";
+
+        // Bỏ qua nếu title là điểm số (8.2), số tập (12), chữ "4k" hoặc quá ngắn
+        if (!title || title.length <= 1 || /^[\d.]+$/.test(title) || /^4k$/i.test(title) || title.includes("立即播放")) {
+            title = (card.find("img").first().attr("alt") || $(el).attr("title") || "").trim();
+        }
+        if (!title || title.length <= 1 || /^[\d.]+$/.test(title)) return;
+
         let title = card.find("h3, h4, .font-medium, .font-semibold, .truncate").first().text()
                  || card.find("img").first().attr("alt")
                  || $(el).attr("title")
@@ -33,6 +45,31 @@ function parseItems($, container) {
         }
     });
     return items;
+}
+
+async function getSubtitles(type, id) {
+    try {
+        if (!/^tt\d+/i.test(id)) return [];
+        const subUrl = `https://strem.io{type}/${id}.json`;
+        const { data } = await axios.get(subUrl, { timeout: 5000 });
+        const rawSubs = (data && data.subtitles) || [];
+
+        return rawSubs.map((s, idx) => {
+            const langCode = String(s.lang || "").toLowerCase();
+            let langLabel = s.lang || "Sub";
+            if (langCode === "vie" || langCode === "vi") langLabel = "Tiếng Việt (OpenSub)";
+            else if (langCode === "eng" || langCode === "en") langLabel = "Tiếng Anh (OpenSub)";
+            else if (langCode === "zho" || langCode === "chi" || langCode === "zh") langLabel = "Tiếng Trung";
+
+            return {
+                id: s.id || `sub_${idx}`,
+                url: s.url,
+                lang: langLabel
+            };
+        });
+    } catch (e) {
+        return [];
+    }
 }
 
 async function getCatalog(id, extra) {
