@@ -88,28 +88,47 @@ async function getCatalog(id, extra) {
             rawItems = parseItems($, $("main").length ? $("main") : $("body"));
         }
 
-        const limited = rawItems.slice(0, 30);
+               const limited = rawItems.slice(0, 24);
         if (limited.length === 0) return [];
-        const viTitles = await translateBatch(limited.map(i => i.title), "vi");
 
-        return limited.map((item) => {
+        const [viTitles, imdbIds] = await Promise.all([
+            translateBatch(limited.map(i => i.title), "vi"),
+            Promise.all(limited.map(i => getImdbIdFromCnTitle(i.title, "", i.poster)))
+        ]);
+
+        return limited.map((item, idx) => {
             const path = item.link.replace(BASE_URL, "").replace("https://4kvm.tv", "").replace("http://4kvm.tv", "");
+            const imdbId = imdbIds[idx];
+            const finalId = imdbId || `4kvm:${encodeURIComponent(path)}`;
+
+            if (imdbId) {
+                moviePathMap.set(imdbId, path);
+            }
+
             return {
-                id: `4kvm:${encodeURIComponent(path)}`,
+                id: finalId,
+                imdb_id: imdbId || undefined,
                 type: id === "4kvm_movies" ? "movie" : "series",
-                name: `${viTitles.shift() || item.title} (${item.title})`,
+                name: `${viTitles[idx] || item.title} (${item.title})`,
                 poster: item.poster,
                 background: item.poster,
                 description: item.badge ? `Cập nhật: ${item.badge}` : ""
             };
         });
+
     } catch (e) {
         return [];
     }
 }
 async function getMeta(type, id) {
-    const path = decodeURIComponent(id.replace("4kvm:", ""));
+    let path = "";
+    if (/^tt\d+/i.test(id) && moviePathMap.has(id)) {
+        path = moviePathMap.get(id);
+    } else {
+        path = decodeURIComponent(id.replace("4kvm:", ""));
+    }
     const movieUrl = path.startsWith("http") ? path : `${BASE_URL}${path}`;
+
     try {
         const { data } = await axios.get(movieUrl, { headers: HEADERS });
         const $ = cheerio.load(data);
@@ -248,5 +267,17 @@ async function getStreams(rawId) {
         return [];
     }
 }
+async function getSubtitles(type, id) {
+    try {
+        if (!/^tt\d+/i.test(id)) return [];
+        const subUrl = `https://strem.io{type}/${id}.json`;
+        const { data } = await axios.get(subUrl, { timeout: 5000 });
+        return (data && data.subtitles) || [];
+    } catch (e) {
+        return [];
+    }
+}
+
+module.exports = { getCatalog, getMeta, getStreams, getSubtitles };
 
 module.exports = { getCatalog, getMeta, getStreams };
