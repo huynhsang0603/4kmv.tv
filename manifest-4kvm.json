@@ -1,0 +1,17 @@
+{
+  "name": "4KVM Việt Nam",
+  "version": "1.0.0",
+  "description": "Nguồn phim 4KVM 1080p HLS & tự động phụ đề OpenSubtitles",
+  "author": "huynhsang0603",
+  "scrapers": [
+    {
+      "id": "4kvm_vn",
+      "name": "4KVM (1080p HLS)",
+      "description": "Lấy luồng 1080p từ server Render 4KVM",
+      "version": "1.0.0",
+      "type": "all",
+      "filename": "provider-4kvm.js",
+      "supportedTypes": ["movie", "tv"]
+    }
+  ]
+}
