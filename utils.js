@@ -85,7 +85,7 @@ async function translateBatch(textArray, targetLang = "vi") {
     return textArray.map(t => cache.get(`${targetLang}_${t}`) || t);
 }
 
-async function getImdbIdFromCnTitle(cnTitle, releaseDate, htmlContent) {
+async function getImdbIdFromCnTitle(cnTitle, releaseDate) {
     if (!cnTitle) return null;
     const cleanTitle = cnTitle
         .replace(/[:：]\s*第.*季/g, "")
@@ -98,16 +98,21 @@ async function getImdbIdFromCnTitle(cnTitle, releaseDate, htmlContent) {
     if (imdbCache.has(cacheKey)) return imdbCache.get(cacheKey);
 
     try {
-        const yearParam = year ? `&year=${year}&first_air_date_year=${year}` : "";
-        const sUrl = `${TMDB_API}/search/multi?api_key=${TMDB_KEY}&language=zh-CN&query=${encodeURIComponent(cleanTitle)}${yearParam}`;
-        const { data } = await axios.get(sUrl, { timeout: 6000 });
-        const results = (data && data.results) || [];
+        // Thử tìm cả TV và Movie cùng lúc để không bị kết quả "person" (diễn viên) làm nhiễu
+        const [tvRes, movieRes] = await Promise.all([
+            axios.get(`${TMDB_API}/search/tv?api_key=${TMDB_KEY}&language=zh-CN&query=${encodeURIComponent(cleanTitle)}`, { timeout: 8000 }).catch(() => null),
+            axios.get(`${TMDB_API}/search/movie?api_key=${TMDB_KEY}&language=zh-CN&query=${encodeURIComponent(cleanTitle)}`, { timeout: 8000 }).catch(() => null)
+        ]);
 
-        const matchedTmdb = results.find(r => r.media_type === "movie" || r.media_type === "tv");
+        const tvHit = tvRes && tvRes.data && tvRes.data.results && tvRes.data.results.shift();
+        const movieHit = movieRes && movieRes.data && movieRes.data.results && movieRes.data.results.shift();
 
-        if (matchedTmdb) {
-            const extUrl = `${TMDB_API}/${matchedTmdb.media_type}/${matchedTmdb.id}/external_ids?api_key=${TMDB_KEY}`;
-            const extRes = await axios.get(extUrl, { timeout: 6000 });
+        const target = tvHit || movieHit;
+        const targetType = tvHit ? "tv" : "movie";
+
+        if (target && target.id) {
+            const extUrl = `${TMDB_API}/${targetType}/${target.id}/external_ids?api_key=${TMDB_KEY}`;
+            const extRes = await axios.get(extUrl, { timeout: 8000 });
             const imdbId = extRes.data && extRes.data.imdb_id;
 
             if (imdbId && /^tt\d+/i.test(imdbId)) {
@@ -117,10 +122,9 @@ async function getImdbIdFromCnTitle(cnTitle, releaseDate, htmlContent) {
             }
         }
     } catch (e) {
-        console.log("TMDB Error:", e.message);
+        console.error("TMDB Lookup Error:", e.message);
     }
 
-    imdbCache.set(cacheKey, null);
     return null;
 }
 
