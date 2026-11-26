@@ -97,41 +97,46 @@ async function getImdbIdFromCnTitle(cnTitle, releaseDate) {
     const cacheKey = `${cleanTitle}_${year}`;
     if (imdbCache.has(cacheKey)) return imdbCache.get(cacheKey);
 
+    // Thử tìm 2 lượt: Lượt 1 bằng chính tên tiếng Trung gốc, Lượt 2 bằng tên tiếng Anh đã dịch
+    const queries = [cleanTitle];
     try {
-        // 1. Dịch tên tiếng Trung sang tiếng Anh bằng hàm có sẵn trong utils.js
         const enTitle = await translateText(cleanTitle, "en");
-        const query = (enTitle || cleanTitle).trim();
-
-        // 2. Gọi API công khai của IMDb (Không cần API Key, trả về thẳng mã tt...)
-        const imdbUrl = `https://media-imdb.com{encodeURIComponent(query)}.json`;
-        const { data } = await axios.get(imdbUrl, {
-            timeout: 6000,
-            headers: { "User-Agent": "Mozilla/5.0" }
-        });
-
-        const list = (data && data.d) || [];
-        // Lọc lấy kết quả phim (bỏ qua diễn viên nm...)
-        const moviesOnly = list.filter(item => item.id && /^tt\d+/i.test(item.id));
-
-        let bestMatch = null;
-        if (year && moviesOnly.length > 0) {
-            bestMatch = moviesOnly.find(item => String(item.y) === String(year));
+        if (enTitle && enTitle.toLowerCase() !== cleanTitle.toLowerCase()) {
+            queries.push(enTitle.replace(/[^a-zA-Z0-9\s]/g, " ").trim());
         }
-        if (!bestMatch && moviesOnly.length > 0) {
-            bestMatch = moviesOnly.shift();
-        }
+    } catch (e) {}
 
-        if (bestMatch && bestMatch.id) {
-            const validId = bestMatch.id.toLowerCase();
-            imdbCache.set(cacheKey, validId);
-            return validId;
-        }
-    } catch (e) {
-        console.error("IMDb Lookup Error:", e.message);
+    for (const q of queries) {
+        try {
+            const firstChar = /^[a-z0-9]/i.test(q) ? q.charAt(0).toLowerCase() : "x";
+            const imdbUrl = `https://media-imdb.com{firstChar}/${encodeURIComponent(q)}.json`;
+            const { data } = await axios.get(imdbUrl, {
+                timeout: 6000,
+                headers: { "User-Agent": "Mozilla/5.0" }
+            });
+
+            const list = (data && data.d) || [];
+            const moviesOnly = list.filter(item => item.id && /^tt\d+/i.test(item.id));
+
+            let bestMatch = null;
+            if (year && moviesOnly.length > 0) {
+                bestMatch = moviesOnly.find(item => String(item.y) === String(year));
+            }
+            if (!bestMatch && moviesOnly.length > 0) {
+                bestMatch = moviesOnly.shift();
+            }
+
+            if (bestMatch && bestMatch.id) {
+                const validId = bestMatch.id.toLowerCase();
+                imdbCache.set(cacheKey, validId);
+                return validId;
+            }
+        } catch (e) {}
     }
 
     return null;
 }
+
 
 
 
